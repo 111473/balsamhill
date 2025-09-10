@@ -9,7 +9,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
 import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
-
+import org.openqa.selenium.firefox.FirefoxOptions;
 
 public class DriverFactory {
 
@@ -20,20 +20,47 @@ public class DriverFactory {
     private static final String CHROME = "chrome";
 
     /**
-     * Initializes the WebDriver based on configuration settings.
+     * Initializes the WebDriver based on configuration settings or TestNG parameters.
      * Supports Chrome, Firefox, and Edge browsers with optional headless mode.
      * Ensures thread-safe WebDriver instances using DriverManager.
+     *
+     * @param browserName Optional browser parameter from TestNG, overrides config if provided
      */
-    public static void initDriver() {
+    public static void initDriver(String... browserName) {
         if (DriverManager.getDriver() != null) {
             log.info("Selenium WebDriver already initialized for this thread.");
             return;
         }
 
-        String browser = ConfigManager.get("browser").toLowerCase();
+        log.info("Thread {} - Driver initialized: {}",
+                Thread.currentThread().getId(), DriverManager.getDriver());
+
+        // Use TestNG parameter if provided, otherwise fall back to config
+        String browser = (browserName.length > 0 && browserName[0] != null) ?
+                browserName[0].toLowerCase() :
+                ConfigManager.get("browser").toLowerCase();
+
         String baseUrl = ConfigManager.get("baseUrl");
         boolean isHeadless = ConfigManager.getBoolean("headless");
 
+        WebDriver driver = createDriver(browser, isHeadless);
+        DriverManager.setDriver(driver);
+
+        driver.get(baseUrl);
+        log.step("Navigated to base URL: {} using browser: {}", baseUrl, browser);
+
+        driver.manage().window().maximize();
+        log.step("Browser window maximized for: {}", browser);
+    }
+
+    /**
+     * Creates a WebDriver instance based on the specified browser type.
+     *
+     * @param browser    The browser type (chrome, firefox, edge)
+     * @param isHeadless Whether to run in headless mode
+     * @return WebDriver instance
+     */
+    private static WebDriver createDriver(String browser, boolean isHeadless) {
         WebDriver driver;
 
         log.info("Initializing Selenium WebDriver for browser: {}", browser);
@@ -41,7 +68,8 @@ public class DriverFactory {
         switch (browser) {
             case FIREFOX:
                 WebDriverManager.firefoxdriver().setup();
-                driver = new FirefoxDriver();
+                FirefoxOptions firefoxOptions = getFirefoxOptions(isHeadless);
+                driver = new FirefoxDriver(firefoxOptions);
                 log.info("FirefoxDriver initialized.");
                 break;
 
@@ -61,13 +89,7 @@ public class DriverFactory {
                 break;
         }
 
-        DriverManager.setDriver(driver);
-
-        driver.get(baseUrl);
-        log.step("Navigated to base URL: {}", baseUrl);
-
-        driver.manage().window().maximize();
-        log.step("Browser window maximized.");
+        return driver;
     }
 
     /**
@@ -81,11 +103,14 @@ public class DriverFactory {
         options.setExperimentalOption("useAutomationExtension", false);
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
         options.addArguments("--remote-allow-origins=*");
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--disable-extensions");
 
         if (isHeadless) {
             options.addArguments("--headless=new");
             options.addArguments("--disable-gpu");
             options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--no-sandbox");
             options.addArguments("--window-size=1920,1080");
             log.info("Chrome headless mode enabled.");
         }
@@ -94,21 +119,24 @@ public class DriverFactory {
     }
 
     /**
-     * Configures ChromeOptions based on headless mode setting.
+     * Configures EdgeOptions based on headless mode setting.
      *
      * @param isHeadless true to enable headless mode, false otherwise
-     * @return Configured ChromeOptions instance
+     * @return Configured EdgeOptions instance
      */
     private static EdgeOptions getEdgeOptions(boolean isHeadless) {
         EdgeOptions options = new EdgeOptions();
         options.setExperimentalOption("useAutomationExtension", false);
         options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
         options.addArguments("--remote-allow-origins=*");
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.addArguments("--disable-extensions");
 
         if (isHeadless) {
             options.addArguments("--headless=new");
             options.addArguments("--disable-gpu");
             options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--no-sandbox");
             options.addArguments("--window-size=1920,1080");
             log.info("Edge headless mode enabled.");
         }
@@ -116,6 +144,28 @@ public class DriverFactory {
         return options;
     }
 
+    /**
+     * Configures FirefoxOptions based on headless mode setting.
+     *
+     * @param isHeadless true to enable headless mode, false otherwise
+     * @return Configured FirefoxOptions instance
+     */
+    private static FirefoxOptions getFirefoxOptions(boolean isHeadless) {
+        FirefoxOptions options = new FirefoxOptions();
+
+        if (isHeadless) {
+            options.addArguments("--headless");
+            options.addArguments("--width=1920");
+            options.addArguments("--height=1080");
+            log.info("Firefox headless mode enabled.");
+        }
+
+        // Additional Firefox-specific configurations
+        options.addPreference("dom.webnotifications.enabled", false);
+        options.addPreference("media.volume_scale", "0.0");
+
+        return options;
+    }
 
     /**
      * Closes and quits the WebDriver instance for the current thread.
@@ -131,9 +181,8 @@ public class DriverFactory {
                 log.error("Failed to quit WebDriver: {}", e.getMessage());
             }
         }
-        //cleanup for thread-local instances
+        // Cleanup for thread-local instances
         DriverManager.clearDriver();
         log.info("Selenium WebDriver resources cleared for this thread.");
     }
 }
-

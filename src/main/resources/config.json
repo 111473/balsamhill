@@ -1,5 +1,62 @@
 {
-  "browser": ["chrome", "edge"],
+  "browser": ["chrome", "edge", "firefox"],
   "baseUrl": "https://www.balsamhill.com/login",
-  "headless": false
+  "headless": false,
+  "timeout": {
+    "implicit": 10,
+    "explicit": 30,
+    "pageLoad": 60
+  },
+  "retry": {
+    "maxAttempts": 3,
+    "enabled": true
+  },
+  "screenshot": {
+    "onFailure": true,
+    "onSuccess": false,
+    "path": "target/screenshots"
+  },
+  "crossBrowser": {
+    "parallel": true,
+    "threadCount": 3,
+    "browsers": [
+      {
+        "name": "chrome",
+        "version": "latest",
+        "options": {
+          "windowSize": "1920,1080",
+          "additionalArgs": ["--disable-web-security", "--allow-running-insecure-content"]
+        }
+      },
+      {
+        "name": "edge",
+        "version": "latest",
+        "options": {
+          "windowSize": "1920,1080",
+          "additionalArgs": ["--disable-web-security"]
+        }
+      },
+      {
+        "name": "firefox",
+        "version": "latest",
+        "options": {
+          "windowSize": "1920x1080",
+          "preferences": {
+            "dom.webnotifications.enabled": false,
+            "media.volume_scale": "0.0"
+          }
+        }
+      }
+    ]
+  },
+  "environment": {
+    "staging": {
+      "baseUrl": "https://staging.balsamhill.com/login",
+      "apiUrl": "https://staging-api.balsamhill.com"
+    },
+    "production": {
+      "baseUrl": "https://www.balsamhill.com/login",
+      "apiUrl": "https://api.balsamhill.com"
+    }
+  }
 }

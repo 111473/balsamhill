@@ -1,5 +1,6 @@
 package com.balsamhill.automation.runners;
 
+import com.balsamhill.automation.tests.CrossBrowserSearchTests;
 import org.testng.TestNG;
 
 public class TestRunner {

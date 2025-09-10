@@ -1,23 +1,75 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 
-<suite name="Balsam Hill Test Suite" parallel="tests" thread-count="2">
+<suite name="Balsam Hill Cross-Browser Test Suite" parallel="tests" thread-count="3">
 
     <!-- Suite level parameters -->
-    <parameter name="browser" value="chrome"/>
     <parameter name="environment" value="staging"/>
     <parameter name="timeout" value="30"/>
 
     <!-- Test Listeners -->
     <listeners>
         <listener class-name="com.balsamhill.automation.listeners.TestListener"/>
-        <!-- Add Allure TestNG listener if you have Allure -->
         <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
     </listeners>
 
-    <!-- Search Tests -->
-    <test name="Balsam Hill Search Tests">
-        <parameter name="testType" value="search"/>
+    <!-- Chrome Browser Tests -->
+    <test name="Chrome Browser Tests">
+        <parameter name="browser" value="chrome"/>
+
+        <!-- Run all groups for Chrome -->
+        <groups>
+            <run>
+                <include name="smoke"/>
+                <include name="regression"/>
+                <include name="search"/>
+                <include name="pricing"/>
+                <include name="cart"/>
+                <include name="customization"/>
+            </run>
+        </groups>
+
+        <classes>
+            <class name="com.balsamhill.automation.tests.BalsamHillSearchTests"/>
+        </classes>
+    </test>
+
+    <!-- Edge Browser Tests -->
+    <test name="Edge Browser Tests">
+        <parameter name="browser" value="edge"/>
+
+        <!-- Run all groups for Edge -->
+        <groups>
+            <run>
+                <include name="smoke"/>
+                <include name="regression"/>
+                <include name="search"/>
+                <include name="pricing"/>
+                <include name="cart"/>
+                <include name="customization"/>
+            </run>
+        </groups>
+
+        <classes>
+            <class name="com.balsamhill.automation.tests.BalsamHillSearchTests"/>
+        </classes>
+    </test>
+
+    <!-- Firefox Browser Tests -->
+    <test name="Firefox Browser Tests">
+        <parameter name="browser" value="firefox"/>
+
+        <!-- Run all groups for Firefox -->
+        <groups>
+            <run>
+                <include name="smoke"/>
+                <include name="regression"/>
+                <include name="search"/>
+                <include name="pricing"/>
+                <include name="cart"/>
+                <include name="customization"/>
+            </run>
+        </groups>
 
         <classes>
             <class name="com.balsamhill.automation.tests.BalsamHillSearchTests"/>
