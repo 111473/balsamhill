@@ -57,4 +57,8 @@ public class LoggerWrapper {
     public void assertLog(String message) {
         logger.info("[ASSERT] {}", message);
     }
+
+    public boolean isDebugEnabled() {
+        return logger.isDebugEnabled(); // Assuming you're using SLF4J or similar
+    }
 }

@@ -38,6 +38,7 @@ public class SearchResultsPage {
 
     // Temporary solution
     public void selectProduct(int testIndex) {
+
         List<WebElement> products = getInitialItems(items);
         log.step("Initial number of products found: {}", products.size());
 

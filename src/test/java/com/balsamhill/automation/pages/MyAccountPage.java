@@ -2,6 +2,7 @@ package com.balsamhill.automation.pages;
 
 import com.balsamhill.automation.drivers.DriverManager;
 import com.balsamhill.automation.logger.LoggerWrapper;
+import com.balsamhill.automation.utils.PageUtils;
 import com.balsamhill.automation.utils.WaitUtils;
 import com.balsamhill.automation.utils.WebElementUtils;
 import org.openqa.selenium.By;
@@ -19,6 +20,9 @@ public class MyAccountPage {
      * Constructor initializes the WebDriver instance.
      */
     public MyAccountPage(WebDriver driver) {
+
+        PageUtils.handleCookiePolicyBanner(driver);
+
         if (driver == null) {
             throw new IllegalArgumentException("WebDriver cannot be null");
         }

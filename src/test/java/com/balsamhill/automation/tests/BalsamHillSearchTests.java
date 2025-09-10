@@ -59,7 +59,7 @@ public class BalsamHillSearchTests extends BaseTest {
     @Severity(SeverityLevel.CRITICAL)
     @Description("Verify that product price on search results page matches the expected price from test data without any customization")
     @Issue("BALSAM-001")
-    public void testPriceOnSearchResultsMatchesTestDataWithoutProductCustomization(SearchTestData testData)
+    public void testVerifyPriceOnSearchResultsWithoutProductCustomization(SearchTestData testData)
             throws InterruptedException {
 
         Allure.parameter("Search Term", testData.getSearchTerm());
@@ -90,7 +90,7 @@ public class BalsamHillSearchTests extends BaseTest {
     @Severity(SeverityLevel.CRITICAL)
     @Description("Verify that product price on product details page matches the expected price from test data without any customization")
     @Issue("BALSAM-002")
-    public void testPriceOnProductDetailsMatchesTestDataWithoutProductCustomization(SearchTestData testData)
+    public void testVerifyProductPriceWithoutProductCustomization(SearchTestData testData)
             throws InterruptedException {
 
         Allure.parameter("Search Term", testData.getSearchTerm());
@@ -122,7 +122,7 @@ public class BalsamHillSearchTests extends BaseTest {
     @Severity(SeverityLevel.CRITICAL)
     @Description("Verify that product price in shopping cart matches the expected price from test data without any customization")
     @Issue("BALSAM-003")
-    public void testPriceOnShoppingCartMatchesTestDataWithoutProductCustomization(SearchTestData testData)
+    public void testVerifyCartPriceWithoutProductCustomization(SearchTestData testData)
             throws InterruptedException {
 
         Allure.parameter("Search Term", testData.getSearchTerm());
@@ -160,7 +160,7 @@ public class BalsamHillSearchTests extends BaseTest {
     @Severity(SeverityLevel.CRITICAL)
     @Description("Verify that customized product price in shopping cart matches the adjusted price after customization options are selected")
     @Issue("BALSAM-004")
-    public void testPriceOnShoppingCartMatchesTestDataWithProductCustomization(SearchTestData testData)
+    public void testVerifyCartPriceWithProductCustomization(SearchTestData testData)
             throws InterruptedException {
 
         Allure.parameter("Search Term", testData.getSearchTerm());
@@ -190,6 +190,80 @@ public class BalsamHillSearchTests extends BaseTest {
 
         attachScreenshot("Validate Price on Shopping Cart Page with Product Customization");
         Allure.step("Price validation with customization completed successfully");
+
+        removeItem();
+    }
+
+    @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class)
+    @Story("Display Cart Item Count After Adding Product")
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify that the cart icon shows one item after adding a product.")
+    @Issue("BALSAM-005")
+    public void testValidateCartIconShowsOneItem(SearchTestData testData)
+            throws InterruptedException {
+
+        Allure.parameter("Search Term", testData.getSearchTerm());
+        Allure.parameter("Base Price", testData.getCurrentPrice());
+        Allure.parameter("Product Index", testData.getProductIndex());
+        Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
+
+        performLogin();
+        performSearch(testData.getSearchTerm());
+        selectProduct(testData.getProductIndex());
+
+        applyCustomizations(testData.getCustomizationOptions());
+        String adjustedPrice = productPage.getDisplayedProductPrice();
+        Allure.step("Price after customization: " + adjustedPrice);
+
+        addProductToCart();
+        navigateToCart();
+
+        String cartPrice = shoppingCartPage.getDisplayedProductPrice();
+        Allure.step("Price in shopping cart: " + cartPrice);
+
+        AssertionUtils.assertTrue(
+                shoppingCartPage.isCartIconItemCountDisplayed(), "Cart icon should display '1' after adding a product.");
+
+        attachScreenshot("Cart icon displays 1 after adding an item");
+
+        removeItem();
+    }
+
+    @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class)
+    @Story("Display Item Removal Confirmation")
+    @Severity(SeverityLevel.CRITICAL)
+    @Description("Verify that the cart icon shows one item after adding a product.")
+    @Issue("BALSAM-006")
+    public void testValidateRemovalConfirmationMessage(SearchTestData testData)
+            throws InterruptedException {
+
+        Allure.parameter("Search Term", testData.getSearchTerm());
+        Allure.parameter("Base Price", testData.getCurrentPrice());
+        Allure.parameter("Product Index", testData.getProductIndex());
+        Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
+
+        performLogin();
+        performSearch(testData.getSearchTerm());
+        selectProduct(testData.getProductIndex());
+
+        applyCustomizations(testData.getCustomizationOptions());
+        String adjustedPrice = productPage.getDisplayedProductPrice();
+        Allure.step("Price after customization: " + adjustedPrice);
+
+        addProductToCart();
+        navigateToCart();
+
+        String cartPrice = shoppingCartPage.getDisplayedProductPrice();
+        Allure.step("Price in shopping cart: " + cartPrice);
+
+        removeItem();
+        Allure.step("Product Item has been removed");
+
+        AssertionUtils.assertTrue(
+                shoppingCartPage.isKeyWordHasBeenRemovedDisplayed(),"Item has been removed");
+
+        attachScreenshot("Removal confirmation dialog displays 'Item has been removed'");
+
     }
 
     // Helper methods with Allure steps
@@ -201,6 +275,12 @@ public class BalsamHillSearchTests extends BaseTest {
             throw new RuntimeException(e);
         }
         Allure.step("User logged in successfully");
+    }
+
+    @Step("Remove product item ")
+    private void removeItem(){
+        shoppingCartPage.deleteItem();
+        Allure.step("Remove Product Item");
     }
 
     @Step("Search for product: {searchTerm}")
@@ -231,6 +311,12 @@ public class BalsamHillSearchTests extends BaseTest {
     private void navigateToCart() {
         productDetailsModal.viewCart();
         Allure.step("Navigated to shopping cart");
+    }
+
+    @Step("Remove item to shopping cart")
+    private void removeItemToCart() {
+        productDetailsModal.viewCart();
+        Allure.step("Removed Item from shopping cart");
     }
 
     @Attachment(value = "{name}", type = "image/png")
@@ -264,7 +350,7 @@ public class BalsamHillSearchTests extends BaseTest {
     public String attachBrowserLogs() {
         // Implementation to capture and attach browser console logs
         WebDriver driver = DriverManager.getDriver();
-        // Add logic to capture browser logs if needed
+
         return "Browser logs captured";
     }
 }

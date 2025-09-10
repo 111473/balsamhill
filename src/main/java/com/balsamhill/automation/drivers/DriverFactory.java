@@ -7,6 +7,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.edge.EdgeDriver;
+import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 
 
@@ -46,15 +47,16 @@ public class DriverFactory {
 
             case EDGE:
                 WebDriverManager.edgedriver().setup();
-                driver = new EdgeDriver();
+                EdgeOptions edgeOptions = getEdgeOptions(isHeadless);
+                driver = new EdgeDriver(edgeOptions);
                 log.info("EdgeDriver initialized.");
                 break;
 
             case CHROME:
             default:
                 WebDriverManager.chromedriver().setup();
-                ChromeOptions options = getChromeOptions(isHeadless);
-                driver = new ChromeDriver(options);
+                ChromeOptions chromeOptions = getChromeOptions(isHeadless);
+                driver = new ChromeDriver(chromeOptions);
                 log.info("ChromeDriver initialized.");
                 break;
         }
@@ -90,6 +92,30 @@ public class DriverFactory {
 
         return options;
     }
+
+    /**
+     * Configures ChromeOptions based on headless mode setting.
+     *
+     * @param isHeadless true to enable headless mode, false otherwise
+     * @return Configured ChromeOptions instance
+     */
+    private static EdgeOptions getEdgeOptions(boolean isHeadless) {
+        EdgeOptions options = new EdgeOptions();
+        options.setExperimentalOption("useAutomationExtension", false);
+        options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
+        options.addArguments("--remote-allow-origins=*");
+
+        if (isHeadless) {
+            options.addArguments("--headless=new");
+            options.addArguments("--disable-gpu");
+            options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--window-size=1920,1080");
+            log.info("Edge headless mode enabled.");
+        }
+
+        return options;
+    }
+
 
     /**
      * Closes and quits the WebDriver instance for the current thread.

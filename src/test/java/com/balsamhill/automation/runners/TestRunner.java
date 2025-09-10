@@ -7,7 +7,7 @@ public class TestRunner {
         TestNG testng = new TestNG();
 
          testng.setTestClasses(new Class[] {
-                 com.balsamhill.automation.tests.BalsamHillChristmasTreeTest.class
+                 com.balsamhill.automation.tests.BalsamHillSearchTests.class
          });
 
         testng.run();

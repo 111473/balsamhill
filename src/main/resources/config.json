@@ -1,5 +1,5 @@
 {
-  "browser": "chrome",
+  "browser": ["chrome", "edge"],
   "baseUrl": "https://www.balsamhill.com/login",
   "headless": false
 }
