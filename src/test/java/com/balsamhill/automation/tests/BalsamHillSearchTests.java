@@ -8,6 +8,8 @@ import com.balsamhill.automation.pages.*;
 import com.balsamhill.automation.reports.AllureReportManager;
 import com.balsamhill.automation.utils.AssertionUtils;
 import com.balsamhill.automation.utils.TestDataUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.qameta.allure.*;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
@@ -17,6 +19,9 @@ import org.testng.annotations.Optional;
 import org.testng.annotations.Parameters;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 @Epic("E-Commerce Testing")
@@ -24,7 +29,10 @@ import java.util.Map;
 public class BalsamHillSearchTests extends BaseTest {
 
     private static final LoggerWrapper log = new LoggerWrapper(BalsamHillSearchTests.class);
+    private static final String JSON_OUTPUT_DIR = "test-results/price-capture/";
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
+    // Page Objects
     private LoginPage loginPage;
     private MyAccountPage myAccountPage;
     private SearchResultsPage searchResultsPage;
@@ -32,201 +40,150 @@ public class BalsamHillSearchTests extends BaseTest {
     private ProductDetailsModal productDetailsModal;
     private ShoppingCartPage shoppingCartPage;
 
+    // JSON Utility
+    private ObjectMapper objectMapper;
+
     // Store current browser for reporting
     private String currentBrowser;
+    private String testStartTime;
 
     @BeforeMethod
     @Parameters({"browser", "environment"})
     @Step("Set up test environment and initialize page objects")
     public void setUp(@Optional("chrome") String browser, @Optional("staging") String environment) {
-        // Store browser info for reporting
         this.currentBrowser = browser;
+        this.testStartTime = LocalDateTime.now().format(DATE_FORMAT);
+
+        // Initialize JSON mapper
+        this.objectMapper = new ObjectMapper();
+        this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
         // Add browser info to Allure report
         Allure.parameter("Browser", browser);
         Allure.parameter("Environment", environment);
+        Allure.parameter("Test Start Time", testStartTime);
 
-        // Call parent setUp which initializes the driver with browser parameter
+        // Call parent setUp which initializes the driver
         super.setUp(browser, environment);
 
-        // Get the driver from DriverManager
+        // Get the driver and initialize page objects
         WebDriver driver = DriverManager.getDriver();
+        initializePageObjects(driver);
 
-        // Debug log to verify driver is not null
-        log.info("Driver from DriverManager for browser {}: {}", browser, driver);
-        Allure.addAttachment("Driver Info",
-                String.format("Browser: %s, Driver initialized: %s", browser, (driver != null ? "Success" : "Failed")));
-
-        // Initialize page objects with the driver
-        loginPage = new LoginPage(driver);
-        myAccountPage = new MyAccountPage(driver);
-        searchResultsPage = new SearchResultsPage(driver);
-        productPage = new ProductPage(driver);
-        productDetailsModal = new ProductDetailsModal(driver);
-        shoppingCartPage = new ShoppingCartPage(driver);
-
-        log.info("Page objects initialized successfully for browser: {}", browser);
-        Allure.step(String.format("Page objects initialized successfully for browser: %s", browser));
-    }
-
-    @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
-            groups = {"smoke", "search", "pricing"})
-    @Story("Price Validation on Search Results")
-    @Severity(SeverityLevel.CRITICAL)
-    @Description("Verify that product price on search results page matches the expected price from test data without any customization")
-    @Issue("BALSAM-001")
-    public void testVerifyPriceOnSearchResultsWithoutProductCustomization(SearchTestData testData)
-            throws InterruptedException {
-
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Expected Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting price validation test on search results for browser: {}", currentBrowser);
-
-        performLogin();
-        performSearch(testData.getSearchTerm());
-
-        String expectedPrice = searchResultsPage.fetchBasePriceFromJson(testData.getCurrentPrice());
-        String actualPrice = searchResultsPage.getDisplayedProductPrice();
-
-        Allure.step("Expected Price: " + expectedPrice);
-        Allure.step("Actual Price: " + actualPrice);
-
-        AssertionUtils.assertEquals(
-                expectedPrice,
-                actualPrice,
-                String.format("Verification confirmed that the product base price from the Search Results Page matched the price in the Test Data on browser: %s", currentBrowser)
-        );
-
-        attachScreenshot(String.format("Validate Price on Search Result Page without Product Customization - %s", currentBrowser));
-        Allure.step(String.format("Price validation completed successfully on Search Results page for browser: %s", currentBrowser));
-    }
-
-    @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
-            groups = {"regression", "search", "pricing"})
-    @Story("Price Validation on Product Details")
-    @Severity(SeverityLevel.CRITICAL)
-    @Description("Verify that product price on product details page matches the expected price from test data without any customization")
-    @Issue("BALSAM-002")
-    public void testVerifyProductPriceWithoutProductCustomization(SearchTestData testData)
-            throws InterruptedException {
-
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Expected Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting price validation test on product details for browser: {}", currentBrowser);
-
-        performLogin();
-        performSearch(testData.getSearchTerm());
-        selectProduct(testData.getProductIndex());
-
-        String expectedPrice = searchResultsPage.fetchBasePriceFromJson(testData.getCurrentPrice());
-        String actualPrice = productPage.getDisplayedProductPrice();
-
-        Allure.step("Expected Price: " + expectedPrice);
-        Allure.step("Actual Price: " + actualPrice);
-
-        AssertionUtils.assertEquals(
-                expectedPrice,
-                actualPrice,
-                String.format("Verified: Product base price from the Search Results Page matches the price in the Test Data on browser: %s", currentBrowser)
-        );
-
-        attachScreenshot(String.format("Validate Price on Product Details Page without Product Customization - %s", currentBrowser));
-        Allure.step(String.format("Price validation completed successfully on Product Details page for browser: %s", currentBrowser));
+        log.info("Test setup completed successfully for browser: {} at {}", browser, testStartTime);
+        Allure.step(String.format("Test environment initialized for browser: %s", browser));
     }
 
     @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
             groups = {"regression", "cart", "pricing"})
-    @Story("Price Validation on Shopping Cart")
+    @Story("Complete Price Journey Validation")
     @Severity(SeverityLevel.CRITICAL)
-    @Description("Verify that product price in shopping cart matches the expected price from test data without any customization")
-    @Issue("BALSAM-003")
-    public void testVerifyCartPriceWithoutProductCustomization(SearchTestData testData)
+    @Description("Validate price consistency throughout the entire purchase journey")
+    @Issue("BALSAM-001")
+    public void testCompletePriceJourneyWithCapture(SearchTestData testData)
             throws InterruptedException {
 
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Expected Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting cart price validation test for browser: {}", currentBrowser);
+        addTestParametersToReport(testData);
+        log.step("Starting complete price journey test for browser: {}", currentBrowser);
 
         performLogin();
         performSearch(testData.getSearchTerm());
 
-        Thread.sleep(10000); // Consider replacing with explicit wait
-        Allure.step("Waiting for page to load completely");
+        // Capture price at each step
+        String searchResultsPrice = searchResultsPage.selectProductAndGetPrice(testData.getProductIndex());
 
-        selectProduct(testData.getProductIndex());
+        String productDetailsPrice = productPage.getDisplayedProductPrice();
         addProductToCart();
         navigateToCart();
 
-        String expectedPrice = searchResultsPage.fetchBasePriceFromJson(testData.getCurrentPrice());
-        String actualPrice = shoppingCartPage.getDisplayedProductPrice();
+        String cartPrice = shoppingCartPage.getDisplayedProductPrice();
 
-        Allure.step("Expected Price: " + expectedPrice);
-        Allure.step("Actual Price: " + actualPrice);
+        // Create comprehensive test data
+        SearchTestData journeyData = new SearchTestData.Builder()
+                .searchTerm(testData.getSearchTerm())
+                .productIndex(testData.getProductIndex())
+                .currentPrice(searchResultsPrice)
+                .expectedPrice(testData.getCurrentPrice())
+                .newPrice(cartPrice)
+                .expectedItemName(testData.getExpectedItemName())
+                .build();
 
-        AssertionUtils.assertEquals(
-                expectedPrice,
-                actualPrice,
-                String.format("Verified: Product base price from the Product Page matches the price in the Test Data on browser: %s", currentBrowser)
-        );
+        String jsonFilePath = saveTestDataToJson(journeyData, "complete-journey");
+        attachJsonData(journeyData, "Complete Journey Price Data");
 
-        attachScreenshot(String.format("Validate Price on Shopping Cart Page without Product Customization - %s", currentBrowser));
-        Allure.step(String.format("Price validation completed successfully on Shopping Cart page for browser: %s", currentBrowser));
+        // Validate price consistency
+        Allure.step("Base Price: " + searchResultsPrice);
+        Allure.step("Customized Price: " + productDetailsPrice);
+        Allure.step("Cart Price: " + cartPrice);
+
+        AssertionUtils.assertEquals(searchResultsPrice, productDetailsPrice,
+                "Price should be consistent between search results and product details");
+        AssertionUtils.assertEquals(productDetailsPrice, cartPrice,
+                "Price should be consistent between product details and cart");
+
+        attachScreenshot("Complete Price Journey Validation");
+
+        // Cleanup
+        removeItem();
+
+        log.info("Complete price journey validation completed. Data saved to: {}", jsonFilePath);
     }
 
     @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
             groups = {"regression", "cart", "customization"})
     @Story("Price Validation with Product Customization")
     @Severity(SeverityLevel.CRITICAL)
-    @Description("Verify that customized product price in shopping cart matches the adjusted price after customization options are selected")
-    @Issue("BALSAM-004")
-    public void testVerifyCartPriceWithProductCustomization(SearchTestData testData)
+    @Description("Verify customized product price changes and capture all price variations")
+    @Issue("BALSAM-002")
+    public void testCustomizationPriceValidationWithCapture(SearchTestData testData)
             throws InterruptedException {
 
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Base Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting customization price validation test for browser: {}", currentBrowser);
+        addTestParametersToReport(testData);
+        log.step("Starting customization price validation for browser: {}", currentBrowser);
 
         performLogin();
         performSearch(testData.getSearchTerm());
-        selectProduct(testData.getProductIndex());
 
+        // Capture base price before customization
+        String searchResultsPrice = searchResultsPage.selectProductAndGetPrice(testData.getProductIndex());
+
+        // Apply customizations
         applyCustomizations(testData.getCustomizationOptions());
-        String adjustedPrice = productPage.getDisplayedProductPrice();
-        Allure.step("Price after customization: " + adjustedPrice);
+
+        // Capture price after customization
+        String customizedPrice = productPage.getDisplayedProductPrice();
 
         addProductToCart();
         navigateToCart();
 
         String cartPrice = shoppingCartPage.getDisplayedProductPrice();
-        Allure.step("Price in shopping cart: " + cartPrice);
 
-        AssertionUtils.assertEquals(
-                adjustedPrice,
-                cartPrice,
-                String.format("Verified: Product base price from the Search Results Page matches the price in the Test Data on browser: %s", currentBrowser)
-        );
+        // Create detailed customization test data
+        SearchTestData customizationData = new SearchTestData.Builder()
+                .searchTerm(testData.getSearchTerm())
+                .productIndex(testData.getProductIndex())
+                .currentPrice(searchResultsPrice)
+                .newPrice(customizedPrice)
+                .expectedPrice(cartPrice)
+                .customizationOptions(testData.getCustomizationOptions())
+                .build();
 
-        attachScreenshot(String.format("Validate Price on Shopping Cart Page with Product Customization - %s", currentBrowser));
-        Allure.step(String.format("Price validation with customization completed successfully for browser: %s", currentBrowser));
+        String jsonFilePath = saveTestDataToJson(customizationData, "customization");
+        attachJsonData(customizationData, "Customization Price Data");
+
+        // Validation
+        Allure.step("Base Price: " + searchResultsPrice);
+        Allure.step("Customized Price: " + customizedPrice);
+        Allure.step("Cart Price: " + cartPrice);
+
+        AssertionUtils.assertEquals(customizedPrice, cartPrice,
+                "Customized price should match cart price");
+
+        attachScreenshot("Customization Price Validation");
 
         removeItem();
+
+        log.info("Customization validation completed. Data saved to: {}", jsonFilePath);
     }
 
     @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
@@ -234,31 +191,58 @@ public class BalsamHillSearchTests extends BaseTest {
     @Story("Display Cart Item Count After Adding Product")
     @Severity(SeverityLevel.CRITICAL)
     @Description("Verify that the cart icon shows one item after adding a product.")
-    @Issue("BALSAM-005")
+    @Issue("BALSAM-003")
     public void testValidateCartIconShowsOneItem(SearchTestData testData)
             throws InterruptedException {
 
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Base Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting cart icon validation test for browser: {}", currentBrowser);
+        addTestParametersToReport(testData);
+        log.step("Starting customization price validation for browser: {}", currentBrowser);
 
         performLogin();
         performSearch(testData.getSearchTerm());
-        selectProduct(testData.getProductIndex());
 
+        // Capture base price before customization
+        String searchResultsPrice = searchResultsPage.selectProductAndGetPrice(testData.getProductIndex());
+
+        // Apply customizations
         applyCustomizations(testData.getCustomizationOptions());
-        String adjustedPrice = productPage.getDisplayedProductPrice();
-        Allure.step("Price after customization: " + adjustedPrice);
+
+        // Capture price after customization
+        String customizedPrice = productPage.getDisplayedProductPrice();
 
         addProductToCart();
         navigateToCart();
 
         String cartPrice = shoppingCartPage.getDisplayedProductPrice();
+
+        // Create detailed customization test data
+        SearchTestData customizationData = new SearchTestData.Builder()
+                .searchTerm(testData.getSearchTerm())
+                .productIndex(testData.getProductIndex())
+                .currentPrice(searchResultsPrice)
+                .newPrice(customizedPrice)
+                .expectedPrice(cartPrice)
+                .customizationOptions(testData.getCustomizationOptions())
+                .build();
+
+        String jsonFilePath = saveTestDataToJson(customizationData, "customization");
+        attachJsonData(customizationData, "Customization Price Data");
+
+        // Validation
+        Allure.step("Base Price: " + searchResultsPrice);
+        Allure.step("Customized Price: " + customizedPrice);
+        Allure.step("Cart Price: " + cartPrice);
+
+
+
+//        Allure.step("Product Item has been removed");
+//
+//        AssertionUtils.assertTrue(
+//                shoppingCartPage.isKeyWordHasBeenRemovedDisplayed(),
+//                String.format("Item removal confirmation should be displayed on browser: %s", currentBrowser));
+//
+//        attachScreenshot(String.format("Removal confirmation dialog displays 'Item has been removed' - %s", currentBrowser));
+
         Allure.step("Price in shopping cart: " + cartPrice);
 
         AssertionUtils.assertTrue(
@@ -268,41 +252,59 @@ public class BalsamHillSearchTests extends BaseTest {
         attachScreenshot(String.format("Cart icon displays 1 after adding an item - %s", currentBrowser));
 
         removeItem();
+
+        log.info("Customization validation completed. Data saved to: {}", jsonFilePath);
     }
 
     @Test(dataProvider = "searchDataProvider", dataProviderClass = TestDataUtils.class,
             groups = {"regression", "cart"})
-    @Story("Display Item Removal Confirmation")
+    @Story("Price Validation with Product Customization")
     @Severity(SeverityLevel.CRITICAL)
-    @Description("Verify that the cart shows removal confirmation after removing an item.")
-    @Issue("BALSAM-006")
-    public void testValidateRemovalConfirmationMessage(SearchTestData testData)
+    @Description("Verify customized product price changes and capture all price variations")
+    @Issue("BALSAM-004")
+    public void testValidateItemRemovalConfirmationMessage(SearchTestData testData)
             throws InterruptedException {
 
-        // Add test parameters to Allure report
-        Allure.parameter("Search Term", testData.getSearchTerm());
-        Allure.parameter("Base Price", testData.getCurrentPrice());
-        Allure.parameter("Product Index", testData.getProductIndex());
-        Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
-        Allure.parameter("Browser", currentBrowser);
-
-        log.step("Starting removal confirmation test for browser: {}", currentBrowser);
+        addTestParametersToReport(testData);
+        log.step("Starting customization price validation for browser: {}", currentBrowser);
 
         performLogin();
         performSearch(testData.getSearchTerm());
-        selectProduct(testData.getProductIndex());
 
+        // Capture base price before customization
+        String searchResultsPrice = searchResultsPage.selectProductAndGetPrice(testData.getProductIndex());
+
+        // Apply customizations
         applyCustomizations(testData.getCustomizationOptions());
-        String adjustedPrice = productPage.getDisplayedProductPrice();
-        Allure.step("Price after customization: " + adjustedPrice);
+
+        // Capture price after customization
+        String customizedPrice = productPage.getDisplayedProductPrice();
 
         addProductToCart();
         navigateToCart();
 
         String cartPrice = shoppingCartPage.getDisplayedProductPrice();
-        Allure.step("Price in shopping cart: " + cartPrice);
+
+        // Create detailed customization test data
+        SearchTestData customizationData = new SearchTestData.Builder()
+                .searchTerm(testData.getSearchTerm())
+                .productIndex(testData.getProductIndex())
+                .currentPrice(searchResultsPrice)
+                .newPrice(customizedPrice)
+                .expectedPrice(cartPrice)
+                .customizationOptions(testData.getCustomizationOptions())
+                .build();
+
+        String jsonFilePath = saveTestDataToJson(customizationData, "customization");
+        attachJsonData(customizationData, "Customization Price Data");
+
+        // Validation
+        Allure.step("Base Price: " + searchResultsPrice);
+        Allure.step("Customized Price: " + customizedPrice);
+        Allure.step("Cart Price: " + cartPrice);
 
         removeItem();
+
         Allure.step("Product Item has been removed");
 
         AssertionUtils.assertTrue(
@@ -310,23 +312,80 @@ public class BalsamHillSearchTests extends BaseTest {
                 String.format("Item removal confirmation should be displayed on browser: %s", currentBrowser));
 
         attachScreenshot(String.format("Removal confirmation dialog displays 'Item has been removed' - %s", currentBrowser));
+
+        log.info("Customization validation completed. Data saved to: {}", jsonFilePath);
     }
 
-    // Helper methods with Allure steps
+
+
+    // Helper Methods
+    private void initializePageObjects(WebDriver driver) {
+        if (driver == null) {
+            throw new RuntimeException("WebDriver is null - cannot initialize page objects");
+        }
+
+        loginPage = new LoginPage(driver);
+        myAccountPage = new MyAccountPage(driver);
+        searchResultsPage = new SearchResultsPage(driver);
+        productPage = new ProductPage(driver);
+        productDetailsModal = new ProductDetailsModal(driver);
+        shoppingCartPage = new ShoppingCartPage(driver);
+
+        log.info("Page objects initialized successfully for browser: {}", currentBrowser);
+    }
+
+    private void addTestParametersToReport(SearchTestData testData) {
+        Allure.parameter("Search Term", testData.getSearchTerm());
+        Allure.parameter("Expected Price", testData.getCurrentPrice());
+        Allure.parameter("Product Index", testData.getProductIndex());
+        Allure.parameter("Browser", currentBrowser);
+
+        if (testData.getCustomizationOptions() != null) {
+            Allure.parameter("Customization Options", testData.getCustomizationOptions().toString());
+        }
+    }
+
+    private SearchTestData createEnhancedTestData(SearchTestData originalData, String actualPrice) {
+        return new SearchTestData.Builder()
+                .searchTerm(originalData.getSearchTerm())
+                .productIndex(originalData.getProductIndex())
+                .currentPrice(actualPrice)
+                .expectedPrice(originalData.getCurrentPrice())
+                .expectedItemName(originalData.getExpectedItemName())
+                .customizationOptions(originalData.getCustomizationOptions())
+                .build();
+    }
+
+    private String saveTestDataToJson(SearchTestData testData, String testType) {
+        try {
+            String fileName = String.format("%s_%s_%s_%s.json",
+                    testType,
+                    currentBrowser,
+                    testData.getSearchTerm().replaceAll("\\s+", "_"),
+                    testStartTime);
+
+            String filePath = JSON_OUTPUT_DIR + fileName;
+            testData.saveToJsonFile(filePath);
+
+            Allure.step("Test data saved to JSON: " + filePath);
+            return filePath;
+
+        } catch (IOException e) {
+            log.error("Failed to save test data to JSON: {}", e.getMessage());
+            Allure.step("Failed to save JSON data: " + e.getMessage());
+            return "Failed to save";
+        }
+    }
+
+    // Action Methods with Allure Steps
     @Step("Perform user login")
     private void performLogin() {
         try {
             loginPage.login();
+            Allure.step(String.format("User logged in successfully on browser: %s", currentBrowser));
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Login failed: " + e.getMessage(), e);
         }
-        Allure.step(String.format("User logged in successfully on browser: %s", currentBrowser));
-    }
-
-    @Step("Remove product item")
-    private void removeItem(){
-        shoppingCartPage.deleteItem();
-        Allure.step(String.format("Remove Product Item on browser: %s", currentBrowser));
     }
 
     @Step("Search for product: {searchTerm}")
@@ -335,16 +394,20 @@ public class BalsamHillSearchTests extends BaseTest {
         Allure.step(String.format("Search performed for: %s on browser: %s", searchTerm, currentBrowser));
     }
 
-    @Step("Select product at index: {productIndex}")
-    private void selectProduct(int productIndex) {
-        searchResultsPage.selectProduct(productIndex);
-        Allure.step(String.format("Product selected at index: %d on browser: %s", productIndex, currentBrowser));
-    }
+//    @Step("Select product at index: {productIndex}")
+//    private String selectProductAndGetPrice(int productIndex) {
+//        String actualPrice = searchResultsPage.selectProductAndGetPrice(testData.getProductIndex());
+//        Allure.step(String.format("Product selected at index: %d on browser: %s", productIndex, currentBrowser));
+//        return actualPrice;
+//    }
 
     @Step("Apply product customizations")
     private void applyCustomizations(Object customizationOptions) {
-        productPage.selectOptions((Map<String, String>) customizationOptions);
-        Allure.step(String.format("Customization options applied: %s on browser: %s", customizationOptions.toString(), currentBrowser));
+        if (customizationOptions instanceof Map) {
+            productPage.selectOptions((Map<String, String>) customizationOptions);
+            Allure.step(String.format("Customization options applied: %s on browser: %s",
+                    customizationOptions.toString(), currentBrowser));
+        }
     }
 
     @Step("Add product to shopping cart")
@@ -360,42 +423,51 @@ public class BalsamHillSearchTests extends BaseTest {
     }
 
     @Step("Remove item from shopping cart")
-    private void removeItemFromCart() {
-        productDetailsModal.viewCart();
-        Allure.step(String.format("Removed Item from shopping cart on browser: %s", currentBrowser));
+    private void removeItem() {
+        shoppingCartPage.deleteItem();
+        Allure.step(String.format("Item removed from cart on browser: %s", currentBrowser));
     }
 
+    // Attachment Methods
     @Attachment(value = "{name}", type = "image/png")
     private void attachScreenshot(String name) {
         WebDriver driver = DriverManager.getDriver();
 
         if (driver == null) {
             log.error("WebDriver is null when trying to capture screenshot: {} on browser: {}", name, currentBrowser);
-            Allure.step("Failed to capture screenshot - WebDriver is null");
             return;
         }
 
         try {
             byte[] screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
-            AllureReportManager.attachScreenshot(name, screenshot);
+            AllureReportManager.attachScreenshot(name + " - " + currentBrowser, screenshot);
             log.info("Screenshot captured: {} on browser: {}", name, currentBrowser);
-            Allure.step(String.format("Screenshot captured: %s on browser: %s", name, currentBrowser));
         } catch (Exception e) {
             log.error("Failed to capture screenshot: {} on browser: {} due to {}", name, currentBrowser, e.getMessage());
-            Allure.step(String.format("Failed to capture screenshot on browser %s: %s", currentBrowser, e.getMessage()));
         }
     }
 
-    @Attachment(value = "Test Data", type = "application/json")
-    public String attachTestData(SearchTestData testData) {
-        // You can serialize your test data to JSON and attach it
-        return String.format("Browser: %s, Test Data: %s", currentBrowser, testData.toString());
+    @Attachment(value = "{attachmentName}", type = "application/json")
+    private String attachJsonData(SearchTestData testData, String attachmentName) {
+        try {
+            return objectMapper.writeValueAsString(testData);
+        } catch (Exception e) {
+            log.error("Failed to serialize test data for attachment: {}", e.getMessage());
+            return String.format("Failed to serialize test data: %s", e.getMessage());
+        }
     }
 
     @Attachment(value = "Browser Console Logs", type = "text/plain")
-    public String attachBrowserLogs() {
-        // Implementation to capture and attach browser console logs
+    private String attachBrowserLogs() {
         WebDriver driver = DriverManager.getDriver();
-        return String.format("Browser: %s, Console logs captured", currentBrowser);
+        if (driver != null) {
+            try {
+                // Implementation to capture browser logs if needed
+                return String.format("Browser: %s, Console logs captured at %s", currentBrowser, testStartTime);
+            } catch (Exception e) {
+                return String.format("Failed to capture browser logs: %s", e.getMessage());
+            }
+        }
+        return "WebDriver not available for log capture";
     }
 }

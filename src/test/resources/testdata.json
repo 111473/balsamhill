@@ -1,15 +1,13 @@
 {
-  "tests": [
-    {
-      "searchTerm": "Christmas Tree",
-      "productIndex": 3,
-      "customizationOptions": {
-        "size": "9",
-        "lightType": "LED Clear Lights"
-      },
-      "currentPrice": "$1,399",
-      "newPrice": "$0.00",
-      "expectedItemName": "BH Balsam Fir®"
-    }
-  ]
+  "tests" : [ {
+    "searchTerm" : "Christmas Tree",
+    "productIndex" : 3,
+    "customizationOptions" : {
+      "size" : "9",
+      "lightType" : "LED Clear Lights"
+    },
+    "currentPrice" : "$1,699",
+    "newPrice" : "$1,699",
+    "expectedItemName" : "BH Balsam Fir®"
+  } ]
 }

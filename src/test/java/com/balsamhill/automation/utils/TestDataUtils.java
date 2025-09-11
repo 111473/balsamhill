@@ -4,6 +4,8 @@ import com.balsamhill.automation.models.SearchTestData;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.testng.annotations.DataProvider;
 
@@ -22,6 +24,12 @@ public class TestDataUtils {
     private static final String TEST_DATA_FILE = "src/test/resources/testdata.json";
     private static final ObjectMapper mapper = new ObjectMapper();
 
+    static {
+        // Register module for Java 8 date/time (LocalDateTime, etc.)
+        mapper.registerModule(new JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
     /**
      * DataProvider for search tests
      * Loads test data from JSON file and provides it to test methods
@@ -29,7 +37,6 @@ public class TestDataUtils {
     @DataProvider(name = "searchDataProvider")
     public static Object[][] searchDataProvider() {
         try {
-            ObjectMapper mapper = new ObjectMapper();
             JsonNode rootNode = mapper.readTree(new File(TEST_DATA_FILE));
             List<SearchTestData> testDataList = mapper.convertValue(
                     rootNode.get("tests"),
@@ -107,7 +114,6 @@ public class TestDataUtils {
      * Get all test data from JSON file
      */
     public static List<SearchTestData> getAllTestData() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
         JsonNode rootNode = mapper.readTree(new File(TEST_DATA_FILE));
         return mapper.convertValue(
                 rootNode.get("tests"),

@@ -6,7 +6,6 @@ import com.balsamhill.automation.utils.WaitUtils;
 import com.balsamhill.automation.utils.WebElementUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
-import org.xml.sax.Locator;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -298,7 +297,6 @@ public class ShoppingCartPage {
                 return false;
             }
 
-//            scrollIntoView(deleteElement);
             WebElementUtils.scrollToElement(deleteElement);
             return executeClickStrategies(deleteElement, loaderSelector);
 
